@@ -1,0 +1,19 @@
+with metadata as (select nft_id, nft_collection, nflallday_id,SERIAL_NUMBER	,MOMENT_TIER,
+  PLAYER	,TEAM,	SEASON	, PLAY_TYPE, SERIES	,SET_NAME
+  
+  from  flow.core.dim_allday_metadata ),
+
+  sales as (select * from flow.core.ez_nft_sales )
+
+  select sales.tx_id, 
+  sales.block_timestamp, sales.buyer, 
+  sales.seller,
+  sales.currency, sales.price,
+  metadata.nft_id, metadata.nft_collection, nflallday_id,SERIAL_NUMBER	,MOMENT_TIER,
+  PLAYER	,TEAM,	SEASON	, PLAY_TYPE, SERIES	,SET_NAME
+  from metadata inner join  sales on
+  sales.nft_collection = metadata.nft_collection and 
+  sales.nft_id = metadata.nft_id
+
+  where sales.block_timestamp>='2022-08-01'
+  
