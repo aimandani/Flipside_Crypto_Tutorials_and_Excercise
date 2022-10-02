@@ -1,0 +1,37 @@
+with pa as 
+  (select pool_address, pool_name, token0, token1 from ethereum.core.dim_dex_liquidity_pools
+  where platform = 'sushiswap'),
+
+  raw1 as (select block_timestamp as t , origin_from_address as LP, pool_name, tx_hash,
+  case when event_name = 'Mint' then 'Add Liquidity' when event_name = 'Burn' then 'Remove Liquidity' else null end as Action_Type, 
+  token0, token1 ,
+  event_inputs:amount0::numeric as RawAmount0,
+	event_inputs:amount1::numeric as RawAmount1
+  from ethereum.core.fact_event_logs fel 
+  inner join pa on 
+  fel.contract_address = pa.pool_address
+  where action_type is not null ),
+
+  --td as in token decimals
+  td as (
+  select date(hour) as d, token_address, symbol, decimals, avg(price) as avg_price
+  from ethereum.core.fact_hourly_token_prices
+  group by 1,2,3,4),
+
+  raw2 as (select t, lp, pool_name, tx_hash, Action_Type,
+  token0,td0.symbol as symbol0,RawAmount0,td0.decimals as d0,
+  case when d0 = 18 then RawAmount0/10e17 when d0 = 6 then RawAmount0/10e5 end as amount0,
+  token1,td1.symbol as symbol1,RawAmount1,td1.decimals as d1,
+  case when d1 = 18 then RawAmount1/10e17 when d1 = 6 then RawAmount0/10e5 end as amount1
+  from raw1 inner join td td0 on td0.token_address=raw1.token0 
+  inner join td td1 on td1.token_address=raw1.token1
+  where t>=dateadd(day,-14,'2022-09-15') and t<='2022-09-16'
+  group by 1,2,3,4,5,6,7,8,9,10,11,12,13,14)
+  
+  select * -- date(t) as date, Action_Type, count(distinct lp) as n_of_lp
+  from raw2
+  
+ -- group by 1,2
+  
+  
+  limit 100
